@@ -58,7 +58,8 @@ defmodule TinselWeb.Telemetry do
       ),
       summary("tinsel.repo.query.decode_time",
         unit: {:native, :millisecond},
-        description: "The time spent decoding the data received from the database"
+        description:
+          "The time spent decoding the data received from the database"
       ),
       summary("tinsel.repo.query.query_time",
         unit: {:native, :millisecond},

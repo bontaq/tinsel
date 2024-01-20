@@ -53,6 +53,12 @@ config :tailwind,
     cd: Path.expand("../assets", __DIR__)
   ]
 
+# config/config.exs
+config :tinsel, Oban,
+  repo: Tinsel.Repo,
+  plugins: [Oban.Plugins.Pruner],
+  queues: [default: 10]
+
 # Configures Elixir's Logger
 config :logger, :console,
   format: "$time $metadata[$level] $message\n",

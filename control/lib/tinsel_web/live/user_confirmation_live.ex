@@ -11,7 +11,9 @@ defmodule TinselWeb.UserConfirmationLive do
       <.simple_form for={@form} id="confirmation_form" phx-submit="confirm_account">
         <.input field={@form[:token]} type="hidden" />
         <:actions>
-          <.button phx-disable-with="Confirming..." class="w-full">Confirm my account</.button>
+          <.button phx-disable-with="Confirming..." class="w-full">
+            Confirm my account
+          </.button>
         </:actions>
       </.simple_form>
 
@@ -44,13 +46,17 @@ defmodule TinselWeb.UserConfirmationLive do
         # by some automation or by the user themselves, so we redirect without
         # a warning message.
         case socket.assigns do
-          %{current_user: %{confirmed_at: confirmed_at}} when not is_nil(confirmed_at) ->
+          %{current_user: %{confirmed_at: confirmed_at}}
+          when not is_nil(confirmed_at) ->
             {:noreply, redirect(socket, to: ~p"/")}
 
           %{} ->
             {:noreply,
              socket
-             |> put_flash(:error, "User confirmation link is invalid or it has expired.")
+             |> put_flash(
+               :error,
+               "User confirmation link is invalid or it has expired."
+             )
              |> redirect(to: ~p"/")}
         end
     end

@@ -10,10 +10,13 @@ defmodule Tinsel.Application do
     children = [
       TinselWeb.Telemetry,
       Tinsel.Repo,
-      {DNSCluster, query: Application.get_env(:tinsel, :dns_cluster_query) || :ignore},
+      {DNSCluster,
+       query: Application.get_env(:tinsel, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Tinsel.PubSub},
       # Start the Finch HTTP client for sending emails
       {Finch, name: Tinsel.Finch},
+      # Start jobs service for reminders
+      {Oban, Application.fetch_env!(:tinsel, Oban)},
       # Start a worker by calling: Tinsel.Worker.start_link(arg)
       # {Tinsel.Worker, arg},
       # Start to serve requests, typically the last entry

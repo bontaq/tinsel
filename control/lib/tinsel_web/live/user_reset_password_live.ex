@@ -18,7 +18,12 @@ defmodule TinselWeb.UserResetPasswordLive do
           Oops, something went wrong! Please check the errors below.
         </.error>
 
-        <.input field={@form[:password]} type="password" label="New password" required />
+        <.input
+          field={@form[:password]}
+          type="password"
+          label="New password"
+          required
+        />
         <.input
           field={@form[:password_confirmation]}
           type="password"
@@ -26,7 +31,9 @@ defmodule TinselWeb.UserResetPasswordLive do
           required
         />
         <:actions>
-          <.button phx-disable-with="Resetting..." class="w-full">Reset Password</.button>
+          <.button phx-disable-with="Resetting..." class="w-full">
+            Reset Password
+          </.button>
         </:actions>
       </.simple_form>
 

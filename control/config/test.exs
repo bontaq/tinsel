@@ -20,7 +20,8 @@ config :tinsel, Tinsel.Repo,
 # you can enable the server option below.
 config :tinsel, TinselWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
-  secret_key_base: "/Vr5EudJo1B+ZExFTFQF4353cFejRFn+nAWmRqL+wDXLl/L1vVBHlhZpta7/VsJu",
+  secret_key_base:
+    "/Vr5EudJo1B+ZExFTFQF4353cFejRFn+nAWmRqL+wDXLl/L1vVBHlhZpta7/VsJu",
   server: false
 
 # In test we don't send emails.
