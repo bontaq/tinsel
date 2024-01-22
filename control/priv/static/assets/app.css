@@ -1620,8 +1620,12 @@ select {
 
 /* This file is for your main application CSS */
 
-.message {
-  padding: 10px;
+.messages {
+  .message {
+    margin: 30px;
+    padding: 10px;
+    border-left: 1px solid grey;
+  }
 }
 
 .hover\:cursor-pointer:hover {

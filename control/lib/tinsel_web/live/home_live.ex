@@ -34,11 +34,48 @@ defmodule TinselWeb.HomeLive do
     {:noreply, assign(socket, messages: messages)}
   end
 
+  def clean_message(message) do
+    Logger.error(inspect(message))
+
+    case message do
+      %{content: content, role: "user"} ->
+        %{type: "message", content: content}
+
+      %{"choices" => [%{"finish_reason" => "tool_calls"}]} ->
+        %{type: "tool_call", content: "Tool call"}
+
+      %{type: "tool_reply"} ->
+        %{type: "tool_reply", content: "Tool reply"}
+
+      %{
+        "choices" => [
+          %{"finish_reason" => "stop", "message" => %{"content" => content}}
+        ]
+      } ->
+        %{type: "ai_reply", content: content}
+    end
+  end
+
+  def clean_messages(messages) do
+    messages |> Enum.map(fn message -> clean_message(message) end)
+  end
+
   def messages(assigns) do
     ~H"""
     <div class="messages">
-      <%= for message <- @messages do %>
-        <div class="message"><%= inspect(message) %></div>
+      <%= for message <- clean_messages(@messages) do %>
+        <div class="message">
+          <%= case message.type do %>
+            <% "message" -> %>
+              <p><%= message.content %></p>
+            <% "tool_call" -> %>
+              <p>Tool call</p>
+            <% "tool_reply" -> %>
+              <p>Tool reply</p>
+            <% "ai_reply" -> %>
+              <p><%= message.content %></p>
+          <% end %>
+        </div>
       <% end %>
     </div>
     """
@@ -47,8 +84,6 @@ defmodule TinselWeb.HomeLive do
   def render(assigns) do
     ~H"""
     <div class="">
-      <p>prompt</p>
-      <p>tools</p>
       <.messages messages={@messages} />
       <.simple_form for={@form} id="chat_form" phx-submit="add_message">
         <.input type="text" field={@form[:message]} />
