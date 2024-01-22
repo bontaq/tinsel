@@ -22,6 +22,18 @@ defmodule Tinsel.Tools do
             required: ["url"]
           }
         }
+      },
+      %{
+        type: "function",
+        function: %{
+          name: "get_time",
+          description: "Get the current time",
+          parameters: %{
+            type: "object",
+            properties: %{},
+            required: []
+          }
+        }
       }
     ]
   end
@@ -39,30 +51,47 @@ defmodule Tinsel.Tools do
     end
   end
 
-  def call_tool(%{
+  def call_tool(user, %{
         "function" => %{"arguments" => arguments, "name" => name},
         "id" => id
       }) do
     case name do
+      "get_time" ->
+        TinselWeb.Endpoint.broadcast_from!(
+          self(),
+          "updates/#{user.id}",
+          "data",
+          %{
+            type: "tool_reply",
+            role: "tool",
+            content: "15:34:00",
+            tool_call_id: id,
+            name: name
+          }
+        )
+
       "get_website" ->
         reply = Browse.handle_call(arguments |> Jason.decode!())
 
-        # messages.append({
-        # "role": "tool", "content": content, "tool_call_id": tool_id, "name": tool_name}
         case reply do
           {:ok, content} ->
             TinselWeb.Endpoint.broadcast_from!(
               self(),
-              # "updates/" <> id,
-              "updates/",
+              "updates/#{user.id}",
               "data",
-              %{type: "tool", role: "tool", content: content, tool_call_id: id, name: name}
+              %{
+                type: "tool_reply",
+                role: "tool",
+                content: content,
+                tool_call_id: id,
+                name: name
+              }
             )
         end
     end
   end
 
-  def handle_tool_call(message) do
+  def handle_tool_call(user, message) do
     tool_calls =
       case message do
         %{"choices" => [%{"message" => %{"tool_calls" => tool_calls}}]} ->
@@ -72,6 +101,6 @@ defmodule Tinsel.Tools do
           []
       end
 
-    tool_calls |> Enum.map(fn call -> call_tool(call) end)
+    tool_calls |> Enum.map(fn call -> call_tool(user, call) end)
   end
 end

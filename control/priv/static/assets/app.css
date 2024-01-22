@@ -1620,6 +1620,10 @@ select {
 
 /* This file is for your main application CSS */
 
+.message {
+  padding: 10px;
+}
+
 .hover\:cursor-pointer:hover {
   cursor: pointer;
 }

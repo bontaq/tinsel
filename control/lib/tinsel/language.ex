@@ -31,7 +31,8 @@ defmodule Tinsel.Language do
         1 ->
           [
             %{
-              content: "You are a helpful assistant that is curt and to the point.",
+              content:
+                "You are a helpful assistant that is curt and to the point.",
               role: "system"
             }
           ] ++ messages
@@ -48,7 +49,10 @@ defmodule Tinsel.Language do
       }
       |> Jason.encode!()
 
-    case HTTPoison.post(url, body, headers, [timeout: 50_000, recv_timeout: 50_000]) do
+    case HTTPoison.post(url, body, headers,
+           timeout: 50_000,
+           recv_timeout: 50_000
+         ) do
       {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
         {:ok, Jason.decode!(body)}
 

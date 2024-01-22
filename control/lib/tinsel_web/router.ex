@@ -20,7 +20,6 @@ defmodule TinselWeb.Router do
   scope "/", TinselWeb do
     pipe_through(:browser)
 
-    # get "/", PageController, :home
     live("/", LandingLive, :new)
   end
 
@@ -74,6 +73,8 @@ defmodule TinselWeb.Router do
 
     live_session :require_authenticated_user,
       on_mount: [{TinselWeb.UserAuth, :ensure_authenticated}] do
+      live("/home", HomeLive, :new)
+
       live("/users/settings", UserSettingsLive, :edit)
 
       live(
