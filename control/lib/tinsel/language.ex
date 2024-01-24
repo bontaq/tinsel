@@ -32,7 +32,7 @@ defmodule Tinsel.Language do
           [
             %{
               content:
-                "You are a helpful assistant that is curt and to the point.",
+                "You are a helpful assistant that is curt and to the point. The current unix time is 1706060869.",
               role: "system"
             }
           ] ++ messages

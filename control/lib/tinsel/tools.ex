@@ -26,6 +26,24 @@ defmodule Tinsel.Tools do
       %{
         type: "function",
         function: %{
+          name: "set_reminder",
+          description: "Schedule something to happen at a set time",
+          parameters: %{
+            type: "object",
+            properties: %{
+              time: %{
+                type: "integer",
+                description: "The time at which the event should happen in unix timestamp"
+              }
+            },
+            required: ["time"]
+          }
+        }
+      },
+
+      %{
+        type: "function",
+        function: %{
           name: "get_time",
           description: "Get the current time",
           parameters: %{
@@ -56,6 +74,12 @@ defmodule Tinsel.Tools do
         "id" => id
       }) do
     case name do
+      "set_reminder" ->
+        args = arguments
+        |> Jason.decode!()
+        |> Map.put("user_id", 1)
+        |> Map.put("tool_call_id", id)
+        Tinsel.Schedule.set_reminder(args)
       "get_time" ->
         TinselWeb.Endpoint.broadcast_from!(
           self(),
