@@ -26,6 +26,8 @@ defmodule Tinsel.Schedule do
 #    |> Tinsel.Schedule.new(scheduled_at: ~U[2020-12-25 19:00:56.0Z])
 #    |> Oban.insert()
 
+    {:ok, date_time, offset} = DateTime.from_iso8601("2024-01-24 02:06:00.000000Z")
+
     TinselWeb.Endpoint.broadcast_from!(
       self(),
       "updates/#{user_id}",

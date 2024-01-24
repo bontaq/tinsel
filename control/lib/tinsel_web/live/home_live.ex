@@ -41,8 +41,8 @@ defmodule TinselWeb.HomeLive do
       %{content: content, role: "user"} ->
         %{type: "message", content: content}
 
-      %{"choices" => [%{"finish_reason" => "tool_calls"}]} ->
-        %{type: "tool_call", content: "Tool call"}
+      %{"choices" => [%{"finish_reason" => "tool_calls", "tool_calls" => tool_calls}]} ->
+        %{type: "tool_call", content: "Tool calls"}
 
       %{type: "tool_reply"} ->
         %{type: "tool_reply", content: "Tool reply"}

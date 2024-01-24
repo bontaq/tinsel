@@ -32,8 +32,8 @@ defmodule Tinsel.Tools do
             type: "object",
             properties: %{
               time: %{
-                type: "integer",
-                description: "The time at which the event should happen in unix timestamp"
+                type: "string",
+                description: "The time at which the event should happen in elixir UTC format"
               }
             },
             required: ["time"]
