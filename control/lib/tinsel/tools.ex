@@ -26,6 +26,23 @@ defmodule Tinsel.Tools do
       %{
         type: "function",
         function: %{
+          name: "pipeline",
+          description: "Perform the next part of a task",
+          parameters: %{
+            type: "object",
+            properties: %{
+              continuation: %{
+                type: "string",
+                description: "The next part of the task to perform"
+              }
+            },
+            required: ["continuation"]
+          }
+        }
+      },
+      %{
+        type: "function",
+        function: %{
           name: "set_reminder",
           description: "Schedule something to happen at a set time",
           parameters: %{
@@ -80,6 +97,21 @@ defmodule Tinsel.Tools do
         |> Map.put("user_id", 1)
         |> Map.put("tool_call_id", id)
         Tinsel.Schedule.set_reminder(args)
+      "pipeline" ->
+        args = arguments |> Jason.decode!()
+        TinselWeb.Endpoint.broadcast_from!(
+          self(),
+          "updates/#{user.id}",
+          "data",
+          %{
+            type: "tool_reply",
+            role: "tool",
+            content: args["continuation"],
+            tool_call_id: id,
+            name: name
+          }
+        )
+
       "get_time" ->
         TinselWeb.Endpoint.broadcast_from!(
           self(),
