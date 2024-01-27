@@ -17,16 +17,22 @@ defmodule Tinsel.Schedule do
         name: "set_reminder"
       }
     )
+
     :ok
   end
 
-  def set_reminder(%{"user_id" => user_id, "time" => time, "tool_call_id" => tool_call_id}) do
+  def set_reminder(%{
+        "user_id" => user_id,
+        "time" => time,
+        "tool_call_id" => tool_call_id
+      }) do
     Logger.info("Scheduling for #{user_id} at #{time}")
-#    %{user_id: 1}
-#    |> Tinsel.Schedule.new(scheduled_at: ~U[2020-12-25 19:00:56.0Z])
-#    |> Oban.insert()
+    #    %{user_id: 1}
+    #    |> Tinsel.Schedule.new(scheduled_at: ~U[2020-12-25 19:00:56.0Z])
+    #    |> Oban.insert()
 
-    {:ok, date_time, offset} = DateTime.from_iso8601("2024-01-24 02:06:00.000000Z")
+    {:ok, date_time, offset} =
+      DateTime.from_iso8601("2024-01-24 02:06:00.000000Z")
 
     TinselWeb.Endpoint.broadcast_from!(
       self(),

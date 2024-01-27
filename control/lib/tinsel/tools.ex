@@ -50,14 +50,14 @@ defmodule Tinsel.Tools do
             properties: %{
               time: %{
                 type: "string",
-                description: "The time at which the event should happen in elixir UTC format"
+                description:
+                  "The time at which the event should happen in elixir UTC format"
               }
             },
             required: ["time"]
           }
         }
       },
-
       %{
         type: "function",
         function: %{
@@ -92,13 +92,17 @@ defmodule Tinsel.Tools do
       }) do
     case name do
       "set_reminder" ->
-        args = arguments
-        |> Jason.decode!()
-        |> Map.put("user_id", 1)
-        |> Map.put("tool_call_id", id)
+        args =
+          arguments
+          |> Jason.decode!()
+          |> Map.put("user_id", 1)
+          |> Map.put("tool_call_id", id)
+
         Tinsel.Schedule.set_reminder(args)
+
       "pipeline" ->
         args = arguments |> Jason.decode!()
+
         TinselWeb.Endpoint.broadcast_from!(
           self(),
           "updates/#{user.id}",
@@ -120,7 +124,7 @@ defmodule Tinsel.Tools do
           %{
             type: "tool_reply",
             role: "tool",
-            content: "15:34:00",
+            content: "#{DateTime.utc_now()}",
             tool_call_id: id,
             name: name
           }

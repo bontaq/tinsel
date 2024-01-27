@@ -34,7 +34,7 @@ defmodule TinselWeb.HomeLive do
     {:noreply, assign(socket, messages: messages)}
   end
 
-  def clean_message(message) do
+  def display_message(message) do
     Logger.error(inspect(message))
 
     case message do
@@ -56,14 +56,14 @@ defmodule TinselWeb.HomeLive do
     end
   end
 
-  def clean_messages(messages) do
-    messages |> Enum.map(fn message -> clean_message(message) end)
+  def display_messages(messages) do
+    messages |> Enum.map(fn message -> display_message(message) end)
   end
 
   def messages(assigns) do
     ~H"""
     <div class="messages">
-      <%= for message <- clean_messages(@messages) do %>
+      <%= for message <- display_messages(@messages) do %>
         <div class="message">
           <%= case message.type do %>
             <% "message" -> %>
