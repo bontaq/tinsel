@@ -8,8 +8,11 @@ defmodule Tinsel.Models.Thread do
 
   schema "threads" do
     field(:title, :string)
+    field(:user_id, :integer)
     belongs_to(:users, User)
     has_many(:messages, Message)
+
+    timestamps()
   end
 
   @doc false
