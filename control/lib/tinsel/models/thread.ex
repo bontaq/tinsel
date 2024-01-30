@@ -21,5 +21,4 @@ defmodule Tinsel.Models.Thread do
     |> cast(attrs, [:title, :user_id])
     |> validate_required([:title, :user_id])
   end
-
 end

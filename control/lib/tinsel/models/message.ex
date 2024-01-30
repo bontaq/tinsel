@@ -10,12 +10,14 @@ defmodule Tinsel.Models.Message do
     field(:raw, :map)
     field(:thread_id, :integer)
     belongs_to(:threads, Thread)
+
+    timestamps()
   end
 
   @doc false
   def changeset(data, attrs) do
     data
-    |> cast(attrs, [:title, :user_id])
-    |> validate_required([:title, :user_id])
+    |> cast(attrs, [:type, :raw, :thread_id])
+    |> validate_required([:type, :raw, :thread_id])
   end
 end

@@ -14,7 +14,6 @@ defmodule TinselWeb.ApiController do
 
     Chat.new_thread(1, params["content"])
 
-
     TinselWeb.Endpoint.broadcast_from!(
       self(),
       # "updates/" <> id,
