@@ -8,8 +8,7 @@ defmodule Tinsel.Models.Message do
   schema "messages" do
     field(:type, :string)
     field(:raw, :map)
-    field(:thread_id, :integer)
-    belongs_to(:threads, Thread)
+    belongs_to(:thread, Thread)
 
     timestamps()
   end

@@ -86,7 +86,7 @@ defmodule Tinsel.Tools do
     end
   end
 
-  def call_tool(user, %{
+  def call_tool(topic, %{
         "function" => %{"arguments" => arguments, "name" => name},
         "id" => id
       }) do
@@ -105,7 +105,7 @@ defmodule Tinsel.Tools do
 
         TinselWeb.Endpoint.broadcast_from!(
           self(),
-          "updates/#{user.id}",
+          topic,
           "data",
           %{
             type: "tool_reply",
@@ -119,7 +119,7 @@ defmodule Tinsel.Tools do
       "get_time" ->
         TinselWeb.Endpoint.broadcast_from!(
           self(),
-          "updates/#{user.id}",
+          topic,
           "data",
           %{
             type: "tool_reply",
@@ -137,7 +137,7 @@ defmodule Tinsel.Tools do
           {:ok, content} ->
             TinselWeb.Endpoint.broadcast_from!(
               self(),
-              "updates/#{user.id}",
+              topic,
               "data",
               %{
                 type: "tool_reply",
@@ -151,7 +151,7 @@ defmodule Tinsel.Tools do
     end
   end
 
-  def handle_tool_call(user, message) do
+  def handle_tool_call(topic, message) do
     tool_calls =
       case message do
         %{"choices" => [%{"message" => %{"tool_calls" => tool_calls}}]} ->
@@ -161,6 +161,6 @@ defmodule Tinsel.Tools do
           []
       end
 
-    tool_calls |> Enum.map(fn call -> call_tool(user, call) end)
+    tool_calls |> Enum.map(fn call -> call_tool(topic, call) end)
   end
 end

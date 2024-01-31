@@ -4,6 +4,15 @@
 
 /* This file is for your main application CSS */
 
+.thread {
+    border: 1px solid grey;
+    margin: 20px;
+    padding: 20px;
+}
+
+.threads {
+    display: flex;
+}
 
 .messages {
     .message {

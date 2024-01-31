@@ -18,26 +18,34 @@ defmodule TinselWeb.HomeLive do
   # <.live_component module={HeroComponent} id="hero" content={@content} />
 
   def render(assigns) do
+    # <.live_component
+    #  module={ThreadLive}
+    #  id={thread_id}
+    #  thread_id={thread_id}
+    #  current_user={@current_user}
+    # />
     ~H"""
     <div class="">
-      <%= for thread_id <- @thread_ids do %>
-        <.live_component
-          module={ThreadLive}
-          id={thread_id}
-          thread_id={thread_id}
-          current_user={@current_user}
-        />
-      <% end %>
       <button phx-click="new_thread">New Thread</button>
+      <div class="threads">
+        <%= for thread_id <- @thread_ids do %>
+          <%= live_render(
+            @socket,
+            ThreadLive,
+            id: thread_id,
+            session: %{"thread_id" => thread_id, "user_id" => @current_user.id}
+          ) %>
+        <% end %>
+      </div>
     </div>
     """
   end
 
   def handle_event("new_thread", _value, socket) do
     {:ok, %{:thread_id => thread_id}} =
-      Chat.new_thread(socket.assigns.current_user)
+      Chat.new_thread(socket.assigns.current_user.id)
 
-    thread_ids = thread_id + socket.assigns.thread_ids
+    thread_ids = [thread_id] ++ socket.assigns.thread_ids
     {:noreply, assign(socket, :thread_ids, thread_ids)}
   end
 
@@ -50,7 +58,8 @@ defmodule TinselWeb.HomeLive do
       from(p in Thread,
         select: p.id,
         where: p.user_id == ^user.id
-      ) |> Repo.all
+      )
+      |> Repo.all()
 
     # TinselWeb.Endpoint.subscribe(@topic <> "#{user.id}")
 

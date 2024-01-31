@@ -1,41 +1,67 @@
 defmodule TinselWeb.ThreadLive do
-  use TinselWeb, :live_component
+  use TinselWeb, :live_view
   alias Tinsel.Language
   alias Tinsel.Tools
+  alias Tinsel.Models.Message
+  alias Tinsel.Models.Thread
+  import Ecto.Query
+  alias Tinsel.Repo
+
   require Logger
 
-  @topic "updates/"
+  @topic "updates/thread/"
 
-  def update(assigns, socket) do
-    user = assigns.current_user
-
-    Logger.info("Current user #{user.id}")
-
-    TinselWeb.Endpoint.subscribe(@topic <> "#{user.id}")
+  def mount(params, session, socket) do
+    Logger.info(inspect session)
+    # thread_id = session["thread_id"]
+    %{"thread_id" => thread_id, "user_id" => user_id} = session
+    thread = Repo.get(Thread, thread_id) |> Repo.preload([:messages])
 
     form = to_form(%{"message" => nil})
 
-    {:ok, assign(socket, form: form, messages: [])}
+    TinselWeb.Endpoint.subscribe(@topic <> "#{thread.id}")
+
+    {:ok,
+     assign(socket,
+       form: form,
+       messages: thread.messages,
+       thread_id: thread_id,
+       topic: @topic <> "#{thread.id}",
+       user_id: user_id
+     )}
+  end
+
+  def handle_event("delete_thread", _params, socket) do
+    Repo.get(Thread, socket.assigns.thread_id) |> Repo.delete!()
+    {:noreply, socket}
   end
 
   def handle_event("add_message", %{"message" => message}, socket) do
+    topic = @topic <> "#{socket.assigns.thread_id}"
     current_messages = socket.assigns.messages
 
     message_with_role = %{
       content: message,
-      role: "user"
+      role: "user",
+      type: "user"
     }
 
-    messages = current_messages ++ [message_with_role]
+    message =
+      Message.changeset(%Message{}, %{
+        type: "user",
+        raw: %{role: "user", content: message},
+        thread_id: socket.assigns.thread_id
+      })
+      |> Repo.insert!()
 
-    user = socket.assigns.current_user
+    messages = current_messages ++ [message]
 
     Task.start(fn ->
       TinselWeb.Endpoint.broadcast_from!(
         self(),
-        "updates/#{user.id}",
+        topic,
         "data",
-        %{messages: messages, type: "user"}
+        %{type: "user", messages: messages}
       )
     end)
 
@@ -45,23 +71,37 @@ defmodule TinselWeb.ThreadLive do
   def display_message(message) do
     Logger.error(inspect(message))
 
-    case message do
-      %{content: content, role: "user"} ->
-        %{type: "message", content: content}
+    case message |> Map.get(:type) do
+      "api" ->
+        %{type: "message", content: "api"}
 
-      %{"choices" => [%{"finish_reason" => "tool_calls"}]} ->
-        %{type: "tool_call", content: "Tool calls"}
+      "user" ->
+        %{
+          type: "message",
+          content: message.raw["content"] || message.raw.content
+        }
 
-      %{type: "tool_reply"} ->
-        %{type: "tool_reply", content: "Tool reply"}
-
-      %{
-        "choices" => [
-          %{"finish_reason" => "stop", "message" => %{"content" => content}}
-        ]
-      } ->
-        %{type: "ai_reply", content: content}
+      _ ->
+        %{type: "message", content: "message"}
     end
+
+    #    case message do
+    #      %{content: content, role: "user"} ->
+    #        %{type: "message", content: content}
+    #
+    #      %{"choices" => [%{"finish_reason" => "tool_calls"}]} ->
+    #        %{type: "tool_call", content: "Tool calls"}
+    #
+    #      %{type: "tool_reply"} ->
+    #        %{type: "tool_reply", content: "Tool reply"}
+    #
+    #      %{
+    #        "choices" => [
+    #          %{"finish_reason" => "stop", "message" => %{"content" => content}}
+    #        ]
+    #      } ->
+    #        %{type: "ai_reply", content: content}
+    #    end
   end
 
   def display_messages(messages) do
@@ -91,32 +131,18 @@ defmodule TinselWeb.ThreadLive do
 
   def render(assigns) do
     ~H"""
-    <div class="">
+    <div class="thread">
+      <button phx-click="delete_thread">Delete</button>
       <.messages messages={@messages} />
       <.simple_form for={@form} id="chat_form" phx-submit="add_message">
         <.input type="text" field={@form[:message]} />
-        <button>+</button>
+        <button>Send</button>
       </.simple_form>
     </div>
     """
   end
 
-  def mount(params, session, socket) do
-    user = socket.assigns.current_user
-
-    Logger.info("Current user #{user.id}")
-
-    TinselWeb.Endpoint.subscribe(@topic <> "#{user.id}")
-
-    form = to_form(%{"message" => nil})
-
-    {:ok, assign(socket, form: form, messages: []),
-     temporary_assigns: [form: form]}
-  end
-
-  def run_chat(user, payload) do
-    channel = @topic <> "#{user.id}"
-
+  def run_chat(topic, payload) do
     case payload.type do
       "user" ->
         reply = Language.get_completions(payload.messages)
@@ -125,7 +151,7 @@ defmodule TinselWeb.ThreadLive do
           {:ok, message} ->
             TinselWeb.Endpoint.broadcast_from!(
               self(),
-              channel,
+              topic,
               "data",
               %{message: message, type: "reply"}
             )
@@ -138,14 +164,15 @@ defmodule TinselWeb.ThreadLive do
           {:ok, message} ->
             TinselWeb.Endpoint.broadcast_from!(
               self(),
-              channel,
+              topic,
               "data",
               %{message: message, type: "reply"}
             )
         end
 
       "tool_request" ->
-        Tools.handle_tool_call(user, payload.message |> List.last())
+        # this should probably be syncronous?
+        Tools.handle_tool_call(topic, payload.message |> List.last())
 
       other ->
         Logger.info("other")
@@ -154,19 +181,20 @@ defmodule TinselWeb.ThreadLive do
   end
 
   def handle_info(%{event: "data", payload: payload}, socket) do
-    user = socket.assigns.current_user
+    topic = socket.assigns.topic
 
+    Logger.info(inspect payload)
     case payload.type do
       "user" ->
-        Task.start(fn -> run_chat(user, payload) end)
-        {:noreply, assign(socket, messages: payload.messages)}
+        Task.start(fn -> run_chat(topic, payload) end)
+        {:noreply, socket}
 
       "reply" ->
         messages = socket.assigns.messages ++ [payload.message]
 
         if Tools.is_tool_call(payload.message) do
           Task.start(fn ->
-            run_chat(user, %{type: "tool_request", message: messages})
+            run_chat(topic, %{type: "tool_request", message: messages})
           end)
         end
 
@@ -175,7 +203,9 @@ defmodule TinselWeb.ThreadLive do
       "tool_reply" ->
         messages = socket.assigns.messages ++ [payload]
 
-        Task.start(fn -> run_chat(user, %{type: "user", messages: messages}) end)
+        Task.start(fn ->
+          run_chat(topic, %{type: "user", messages: messages})
+        end)
 
         {:noreply, assign(socket, messages: messages)}
 

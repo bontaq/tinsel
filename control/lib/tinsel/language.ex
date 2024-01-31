@@ -13,7 +13,7 @@ defmodule Tinsel.Language do
   def simplify_message(unknown) do
     Logger.info("unknown")
     Logger.info(inspect(unknown))
-    unknown
+    unknown.raw
   end
 
   def simplify_messages(messages) do
