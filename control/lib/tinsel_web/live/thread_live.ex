@@ -12,21 +12,20 @@ defmodule TinselWeb.ThreadLive do
   @topic "updates/thread/"
 
   def mount(params, session, socket) do
-    Logger.info(inspect session)
     # thread_id = session["thread_id"]
     %{"thread_id" => thread_id, "user_id" => user_id} = session
     thread = Repo.get(Thread, thread_id) |> Repo.preload([:messages])
 
     form = to_form(%{"message" => nil})
 
-    TinselWeb.Endpoint.subscribe(@topic <> "#{thread.id}")
+    TinselWeb.Endpoint.subscribe(@topic <> "#{user_id}/#{thread.id}")
 
     {:ok,
      assign(socket,
        form: form,
        messages: thread.messages,
        thread_id: thread_id,
-       topic: @topic <> "#{thread.id}",
+       topic: @topic <> "#{user_id}/#{thread.id}",
        user_id: user_id
      )}
   end
@@ -37,7 +36,7 @@ defmodule TinselWeb.ThreadLive do
   end
 
   def handle_event("add_message", %{"message" => message}, socket) do
-    topic = @topic <> "#{socket.assigns.thread_id}"
+    topic = socket.assigns.topic
     current_messages = socket.assigns.messages
 
     message_with_role = %{
@@ -142,10 +141,18 @@ defmodule TinselWeb.ThreadLive do
     """
   end
 
+  # define your types
+  # user
+  # reply
+  # tool_request
+
   def run_chat(topic, payload) do
     case payload.type do
       "user" ->
         reply = Language.get_completions(payload.messages)
+
+        Logger.error("run_chat.user")
+        Logger.info(inspect reply)
 
         case reply do
           {:ok, message} ->
@@ -171,6 +178,7 @@ defmodule TinselWeb.ThreadLive do
         end
 
       "tool_request" ->
+        Logger.error("Tool request")
         # this should probably be syncronous?
         Tools.handle_tool_call(topic, payload.message |> List.last())
 
@@ -183,7 +191,8 @@ defmodule TinselWeb.ThreadLive do
   def handle_info(%{event: "data", payload: payload}, socket) do
     topic = socket.assigns.topic
 
-    Logger.info(inspect payload)
+    Logger.info(inspect(payload))
+
     case payload.type do
       "user" ->
         Task.start(fn -> run_chat(topic, payload) end)
@@ -191,6 +200,8 @@ defmodule TinselWeb.ThreadLive do
 
       "reply" ->
         messages = socket.assigns.messages ++ [payload.message]
+
+        Logger.error("handle_info.reply")
 
         if Tools.is_tool_call(payload.message) do
           Task.start(fn ->
