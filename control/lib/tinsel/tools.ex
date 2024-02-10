@@ -6,23 +6,23 @@ defmodule Tinsel.Tools do
   # get a website
   def get_tools() do
     [
-      %{
-        type: "function",
-        function: %{
-          name: "get_website",
-          description: "Retrieve the contents of a website",
-          parameters: %{
-            type: "object",
-            properties: %{
-              url: %{
-                type: "string",
-                description: "The url of the website"
-              }
-            },
-            required: ["url"]
-          }
-        }
-      },
+#      %{
+#        type: "function",
+#        function: %{
+#          name: "get_website",
+#          description: "Retrieve the contents of a website",
+#          parameters: %{
+#            type: "object",
+#            properties: %{
+#              url: %{
+#                type: "string",
+#                description: "The url of the website"
+#              }
+#            },
+#            required: ["url"]
+#          }
+#        }
+#      },
       %{
         type: "function",
         function: %{
@@ -117,36 +117,39 @@ defmodule Tinsel.Tools do
         )
 
       "get_time" ->
-        TinselWeb.Endpoint.broadcast_from!(
-          self(),
-          topic,
-          "data",
-          %{
-            type: "tool_reply",
-            role: "tool",
-            content: "#{DateTime.utc_now()}",
-            tool_call_id: id,
-            name: name
-          }
-        )
+        %{
+          role: "tool",
+          content: "#{DateTime.utc_now()}",
+          tool_call_id: id,
+          name: name
+        }
 
       "get_website" ->
         reply = Browse.handle_call(arguments |> Jason.decode!())
 
         case reply do
           {:ok, content} ->
-            TinselWeb.Endpoint.broadcast_from!(
-              self(),
-              topic,
-              "data",
-              %{
-                type: "tool_reply",
-                role: "tool",
-                content: content,
-                tool_call_id: id,
-                name: name
-              }
-            )
+            %{
+              type: "tool_reply",
+              role: "tool",
+              content: content,
+              tool_call_id: id,
+              name: name
+            }
+
+            #        {:ok, content} ->
+            #          TinselWeb.Endpoint.broadcast_from!(
+            #            self(),
+            #            topic,
+            #            "data",
+            #            %{
+            #              type: "tool_reply",
+            #              role: "tool",
+            #              content: content,
+            #              tool_call_id: id,
+            #              name: name
+            #            }
+            #          )
         end
     end
   end

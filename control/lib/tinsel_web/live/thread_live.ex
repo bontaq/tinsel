@@ -39,28 +39,28 @@ defmodule TinselWeb.ThreadLive do
     topic = socket.assigns.topic
     current_messages = socket.assigns.messages
 
-    message_with_role = %{
-      content: message,
-      role: "user",
-      type: "user"
-    }
+    # so I think you were considering,
+    # each message has a type and a raw?
+    # it's kind of an ugly format man this
+    # annoys me
+    # buhh flatmap.  with no fucking types!
+    # it always wants the messages in choices.  ok.
+    # message =
+    #   Message.changeset(%Message{}, %{
+    #     type: "user",
+    #     raw: %{role: "user", content: message},
+    #     thread_id: socket.assigns.thread_id
+    #   })
+    #   |> Repo.insert!()
 
-    message =
-      Message.changeset(%Message{}, %{
-        type: "user",
-        raw: %{role: "user", content: message},
-        thread_id: socket.assigns.thread_id
-      })
-      |> Repo.insert!()
-
-    messages = current_messages ++ [message]
+    messages = current_messages ++ [%{type: "user", raw: %{role: "user", content: message}}]
 
     Task.start(fn ->
       TinselWeb.Endpoint.broadcast_from!(
         self(),
         topic,
         "data",
-        %{type: "user", messages: messages}
+        %{type: "user", message: messages}
       )
     end)
 
@@ -68,7 +68,7 @@ defmodule TinselWeb.ThreadLive do
   end
 
   def display_message(message) do
-    Logger.error(inspect(message))
+    # Logger.error(inspect(message))
 
     case message |> Map.get(:type) do
       "api" ->
@@ -81,7 +81,7 @@ defmodule TinselWeb.ThreadLive do
         }
 
       _ ->
-        %{type: "message", content: "message"}
+        %{type: "message", content: inspect message}
     end
 
     #    case message do
@@ -147,12 +147,12 @@ defmodule TinselWeb.ThreadLive do
   # tool_request
 
   def run_chat(topic, payload) do
+        Logger.error("run_chat.user")
+        Logger.info(inspect(payload))
     case payload.type do
       "user" ->
-        reply = Language.get_completions(payload.messages)
+        reply = Language.get_completions(payload.message)
 
-        Logger.error("run_chat.user")
-        Logger.info(inspect reply)
 
         case reply do
           {:ok, message} ->
@@ -160,7 +160,7 @@ defmodule TinselWeb.ThreadLive do
               self(),
               topic,
               "data",
-              %{message: message, type: "reply"}
+              %{type: "reply", message: message}
             )
         end
 
@@ -173,19 +173,31 @@ defmodule TinselWeb.ThreadLive do
               self(),
               topic,
               "data",
-              %{message: message, type: "reply"}
+              %{type: "reply", message: message}
             )
         end
 
       "tool_request" ->
         Logger.error("Tool request")
         # this should probably be syncronous?
-        Tools.handle_tool_call(topic, payload.message |> List.last())
+        reply = Tools.handle_tool_call(topic, payload.message |> List.last())
+
+        Logger.info(inspect reply)
+
+        case reply do
+          [reply] ->
+            TinselWeb.Endpoint.broadcast_from!(
+              self(),
+              topic,
+              "data",
+              %{type: "tool_reply", raw: reply}
+            )
+        end
 
       other ->
         Logger.info("other")
         Logger.info(inspect(other))
-    end
+     end
   end
 
   def handle_info(%{event: "data", payload: payload}, socket) do
@@ -215,7 +227,7 @@ defmodule TinselWeb.ThreadLive do
         messages = socket.assigns.messages ++ [payload]
 
         Task.start(fn ->
-          run_chat(topic, %{type: "user", messages: messages})
+          run_chat(topic, %{type: "reply", message: messages})
         end)
 
         {:noreply, assign(socket, messages: messages)}
