@@ -20,7 +20,7 @@ defmodule Tinsel.Language do
     messages |> Enum.map(fn message -> simplify_message(message) end)
   end
 
-  def get_completions(messages) do
+  def get_completion(messages) do
     url = "localhost:5000/v1/chat/completions"
     headers = ["Content-Type": "application/json"]
 

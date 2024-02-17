@@ -2,6 +2,7 @@ defmodule TinselWeb.ThreadLive do
   use TinselWeb, :live_view
   alias Tinsel.Language
   alias Tinsel.Tools
+  alias Tinsel.Coordinator
   alias Tinsel.Models.Message
   alias Tinsel.Models.Thread
   import Ecto.Query
@@ -18,14 +19,14 @@ defmodule TinselWeb.ThreadLive do
 
     form = to_form(%{"message" => nil})
 
-    TinselWeb.Endpoint.subscribe(@topic <> "#{user_id}/#{thread.id}")
+    TinselWeb.Endpoint.subscribe(@topic <> "#{thread.id}")
 
     {:ok,
      assign(socket,
        form: form,
        messages: thread.messages,
        thread_id: thread_id,
-       topic: @topic <> "#{user_id}/#{thread.id}",
+       topic: @topic <> "#{thread.id}",
        user_id: user_id
      )}
   end
@@ -39,28 +40,16 @@ defmodule TinselWeb.ThreadLive do
     topic = socket.assigns.topic
     current_messages = socket.assigns.messages
 
-    # so I think you were considering,
-    # each message has a type and a raw?
-    # it's kind of an ugly format man this
-    # annoys me
-    # buhh flatmap.  with no fucking types!
-    # it always wants the messages in choices.  ok.
-    # message =
-    #   Message.changeset(%Message{}, %{
-    #     type: "user",
-    #     raw: %{role: "user", content: message},
-    #     thread_id: socket.assigns.thread_id
-    #   })
-    #   |> Repo.insert!()
-
-    messages = current_messages ++ [%{type: "user", raw: %{role: "user", content: message}}]
+    messages =
+      current_messages ++
+        [%{type: "user", raw: %{role: "user", content: message}}]
 
     Task.start(fn ->
       TinselWeb.Endpoint.broadcast_from!(
         self(),
         topic,
-        "data",
-        %{type: "user", message: messages}
+        "user_message",
+        %{messages: messages}
       )
     end)
 
@@ -81,26 +70,9 @@ defmodule TinselWeb.ThreadLive do
         }
 
       _ ->
-        %{type: "message", content: inspect message}
+        message
+        # %{type: "reply", content: inspect(message)}
     end
-
-    #    case message do
-    #      %{content: content, role: "user"} ->
-    #        %{type: "message", content: content}
-    #
-    #      %{"choices" => [%{"finish_reason" => "tool_calls"}]} ->
-    #        %{type: "tool_call", content: "Tool calls"}
-    #
-    #      %{type: "tool_reply"} ->
-    #        %{type: "tool_reply", content: "Tool reply"}
-    #
-    #      %{
-    #        "choices" => [
-    #          %{"finish_reason" => "stop", "message" => %{"content" => content}}
-    #        ]
-    #      } ->
-    #        %{type: "ai_reply", content: content}
-    #    end
   end
 
   def display_messages(messages) do
@@ -115,12 +87,14 @@ defmodule TinselWeb.ThreadLive do
           <%= case message.type do %>
             <% "message" -> %>
               <p><%= message.content %></p>
-            <% "tool_call" -> %>
-              <p>Tool call</p>
-            <% "tool_reply" -> %>
-              <p>Tool reply</p>
             <% "ai_reply" -> %>
               <p><%= message.content %></p>
+            <% "tool_reply" -> %>
+              <p>Tool reply</p>
+            <% "tool_calls" -> %>
+              <p>Tool call</p>
+            <% "reply" -> %>
+              <p><%= message.raw["content"] %></p>
           <% end %>
         </div>
       <% end %>
@@ -146,96 +120,66 @@ defmodule TinselWeb.ThreadLive do
   # reply
   # tool_request
 
-  def run_chat(topic, payload) do
-        Logger.error("run_chat.user")
-        Logger.info(inspect(payload))
-    case payload.type do
-      "user" ->
-        reply = Language.get_completions(payload.message)
+  def handle_info(
+        %{
+          event: "new_response",
+          payload: %{
+            :message => %{
+              "choices" => [%{"finish_reason" => "stop", "message" => message}]
+            }
+          }
+        },
+        socket
+      ) do
+    current_messages = socket.assigns.messages
 
+    messages = current_messages ++ [%{type: "reply", raw: message}]
 
-        case reply do
-          {:ok, message} ->
-            TinselWeb.Endpoint.broadcast_from!(
-              self(),
-              topic,
-              "data",
-              %{type: "reply", message: message}
-            )
-        end
-
-      "reply" ->
-        reply = Language.get_completions(payload.message)
-
-        case reply do
-          {:ok, message} ->
-            TinselWeb.Endpoint.broadcast_from!(
-              self(),
-              topic,
-              "data",
-              %{type: "reply", message: message}
-            )
-        end
-
-      "tool_request" ->
-        Logger.error("Tool request")
-        # this should probably be syncronous?
-        reply = Tools.handle_tool_call(topic, payload.message |> List.last())
-
-        Logger.info(inspect reply)
-
-        case reply do
-          [reply] ->
-            TinselWeb.Endpoint.broadcast_from!(
-              self(),
-              topic,
-              "data",
-              %{type: "tool_reply", raw: reply}
-            )
-        end
-
-      other ->
-        Logger.info("other")
-        Logger.info(inspect(other))
-     end
+    {:noreply, assign(socket, messages: messages)}
   end
 
-  def handle_info(%{event: "data", payload: payload}, socket) do
+  def handle_info(
+        %{
+          event: "new_response",
+          payload: %{
+            :message => %{
+              "choices" => [
+                %{"finish_reason" => "tool_calls", "message" => message}
+              ]
+            }
+          }
+        },
+        socket
+      ) do
+    current_messages = socket.assigns.messages
+
+    messages = current_messages ++ [%{type: "tool_calls", raw: message}]
+
+    {:noreply, assign(socket, messages: messages)}
+  end
+
+  def handle_info(
+        %{
+          event: "new_response",
+          payload: %{:message => message}
+        },
+        socket
+      ) do
+    current_messages = socket.assigns.messages
+
+    messages = current_messages ++ [%{type: "tool_reply", raw: message}]
+
+    {:noreply, assign(socket, messages: messages)}
+  end
+
+  def handle_info(%{event: "user_message", payload: payload}, socket) do
     topic = socket.assigns.topic
 
-    Logger.info(inspect(payload))
+    Logger.info("handle_info")
+    Logger.info(Jason.encode!(payload))
 
-    case payload.type do
-      "user" ->
-        Task.start(fn -> run_chat(topic, payload) end)
-        {:noreply, socket}
+    Task.start(fn -> Coordinator.run_chat(topic, payload) end)
 
-      "reply" ->
-        messages = socket.assigns.messages ++ [payload.message]
-
-        Logger.error("handle_info.reply")
-
-        if Tools.is_tool_call(payload.message) do
-          Task.start(fn ->
-            run_chat(topic, %{type: "tool_request", message: messages})
-          end)
-        end
-
-        {:noreply, assign(socket, messages: messages)}
-
-      "tool_reply" ->
-        messages = socket.assigns.messages ++ [payload]
-
-        Task.start(fn ->
-          run_chat(topic, %{type: "reply", message: messages})
-        end)
-
-        {:noreply, assign(socket, messages: messages)}
-
-      other ->
-        Logger.info("other")
-        Logger.info(inspect(other))
-        {:noreply, assign(socket, messages: payload.messages)}
-    end
+    {:noreply, socket}
   end
 end
